@@ -1,1 +1,4 @@
 DS_Store
+
+# exclude our app binary - replace if APP variable in makefile is renamed
+ExampleAppName
