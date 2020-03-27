@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -29,7 +30,22 @@ func main() {
 		IdleTimeout:  120 * time.Second, // all around connection pooling - allows client to resuse the same connection, useful if they have multiple requests. Particularly useful for microservices
 	}
 
-	// start server
-	fmt.Println("Server listening at:", port)
-	log.Fatal(srv.ListenAndServe())
+	// start server - use goroutine so it doesn't block
+	go func() {
+		log.Println("Server listening at:", port)
+		log.Fatal(srv.ListenAndServe())
+	}()
+
+	// listen for SIGINT (ctrl + c) command
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	// block channel until SIGINT received
+	<-c
+
+	// attempt to wait 30sec for current connections to finish before shutting down server
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	srv.Shutdown(ctx)
+	log.Println("gracefully shutdown")
 }
